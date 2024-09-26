@@ -3,5 +3,6 @@ version: '${version}'
 main: dristmine.dristregions.DristRegions
 api-version: '1.20'
 authors: [ Mjakot ]
+#depend: [ WorldGuard ]
 description: More permissive alternative to conventional regions for the DristMine mc server
 website: https://github.com/mjakot/DristRegions

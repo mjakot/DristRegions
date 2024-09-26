@@ -1,19 +1,23 @@
 package dristmine.dristregions.creation;
 
 import dristmine.dristregions.DristRegions;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.World;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.CompassMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.util.Vector;
+
+import java.util.List;
+import java.util.UUID;
 
 public class OnCompassLinked implements Listener {
 	private final JavaPlugin instance;
@@ -28,35 +32,37 @@ public class OnCompassLinked implements Listener {
 		if (!event.hasItem())
 			return;
 
-		if (                                                            // TODO: this might need some optimization in the future
-				event.getAction() != Action.RIGHT_CLICK_BLOCK &&
-				event.getItem().getType() != Material.COMPASS &&
-				event.getClickedBlock().getType() != Material.LODESTONE
-		)
+		if (!event.hasBlock())
 			return;
+
+		if (
+				event.getAction() != Action.RIGHT_CLICK_BLOCK ||
+				event.getItem().getType() != Material.COMPASS ||
+				event.getClickedBlock().getType() != Material.LODESTONE
+		) {
+			return;
+		}
 
 		event.setCancelled(true);
 
-		NamespacedKey regionCompassKey = new NamespacedKey(instance, "drist-regions"); // FIXME: define this key in the plugin config file
+		ItemStack compassInHand = event.getItem();
+		CompassMeta compassMeta = (CompassMeta) compassInHand.getItemMeta();
+		PersistentDataContainer compassContainer = compassMeta.getPersistentDataContainer();
+		NamespacedKey key = new NamespacedKey(instance, "drist-regions");      //TODO: config property
 
-		ItemStack linkedCompass = event.getItem();
-		ItemMeta compassMeta = linkedCompass.getItemMeta();
-		PersistentDataContainer container = compassMeta.getPersistentDataContainer();
+		if (compassContainer.has(key))
+			return;
 
-		Location clickedBlockLocation = event.getClickedBlock().getLocation();
+		Location regionOrigin = event.getClickedBlock().getLocation();
 
-		if (!container.has(regionCompassKey, new RegionOriginDataType())) {
-			Vector clickedBlockVector = new Vector(clickedBlockLocation.getBlockX(), clickedBlockLocation.getBlockY(), clickedBlockLocation.getBlockY());
+		compassContainer.set(key, new UUIDDataType(), new UUID(0L, 0L));   //TODO: Add uuid system
 
-			container.set(regionCompassKey, new RegionOriginDataType(), clickedBlockVector); // FIXME: implement some kind of unique id system for region compasses
-		}
+		compassMeta.displayName(Component.text("Region access key"));             //TODO: config property
+		compassMeta.lore(List.of(new TextComponent[] { Component.text("TEST"), Component.text("TEST222") })); //TODO: config property
 
-		if (!container.has(regionCompassKey, new RegionEnvironmentDataType())) {
-			World.Environment clickedBlockEnvironment = clickedBlockLocation.getWorld().getEnvironment();
+		compassMeta.setLodestoneTracked(false);
+		compassMeta.setLodestone(regionOrigin);
 
-			container.set(regionCompassKey, new RegionEnvironmentDataType(), clickedBlockEnvironment);
-		}
-
-		linkedCompass.setItemMeta(compassMeta);
+		compassInHand.setItemMeta(compassMeta);
 	}
 }
