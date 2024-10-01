@@ -15,27 +15,27 @@ public class ConfigManager {
 	}
 
 	public String getString(String key) throws NullPointerException {
-		if (invalidKey(key))
+		if (isInvalid(key))
 			return "";
 
 		return configuration.getString(key);
 	}
 
 	public List<String> getStringList(String key) throws NullPointerException {
-		if (invalidKey(key))
+		if (isInvalid(key))
 			return List.of();
 
 		return configuration.getStringList(key);
 	}
 
 	public int getInteger(String key) throws NullPointerException {
-		if (invalidKey(key))
+		if (isInvalid(key))
 			return 0;
 
 		return configuration.getInt(key);
 	}
 
-	private static boolean invalidKey(String key) throws NullPointerException {
+	private static boolean isInvalid(String key) throws NullPointerException {
 		if (key == null)
 			throw new NullPointerException();
 		return key.isEmpty();

@@ -7,8 +7,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
 
-import java.util.UUID;
-
 public class OnPlayerInteract implements Listener {
 	private final RegionCreator regionCreator;
 	private final UUIDGenerator uuidGenerator;

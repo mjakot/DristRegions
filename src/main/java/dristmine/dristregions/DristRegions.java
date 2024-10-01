@@ -31,6 +31,8 @@ public final class DristRegions extends JavaPlugin {
 			uuidGenerator = new UUIDGenerator(configManager.getString("last_uuid"));
 		}
 		catch (UUIDGenerator.UUIDOverflowException e) {
+			getLogger().severe(e.getMessage());
+			getLogger().severe("Disabling DristRegions...");
 			getServer().getPluginManager().disablePlugin(this);
 		}
 

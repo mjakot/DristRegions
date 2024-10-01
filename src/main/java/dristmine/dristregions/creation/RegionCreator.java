@@ -10,6 +10,7 @@ import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.managers.storage.StorageException;
 import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
+import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
@@ -38,11 +39,11 @@ public class RegionCreator {
 		}
 	}
 
-	private static class RegionData {
+	private static class RegionManagerData {
 		public RegionContainer regionContainer;
 		public RegionManager regionManager;
 
-		public RegionData(RegionContainer regionContainer, RegionManager regionManager) {
+		public RegionManagerData(RegionContainer regionContainer, RegionManager regionManager) {
 			this.regionContainer = regionContainer;
 			this.regionManager = regionManager;
 		}
@@ -68,14 +69,14 @@ public class RegionCreator {
 	}
 
 	public boolean create(PlayerInteractEvent event, UUID regionUUID) throws NullPointerException, StorageException {
-		if (!verifyEvent(event))
+		if (isInvalid(event))
 			return false;
 
 		event.setCancelled(true);
 
 		CompassData compassData = getCompassDataFrom(event);
 
-		if (!verifyCompass(compassData.compassContainer, containerKey))
+		if (isInvalid(compassData, containerKey))
 			return false;
 
 		Location regionOrigin = getRegionOriginFrom(event);
@@ -85,25 +86,30 @@ public class RegionCreator {
 		assignLodestoneTo(compassData, regionOrigin);
 		applyCompassMetadataTo(compassData);
 
+		RegionManagerData regionManagerData = getRegionDataFrom(regionOrigin);
+
 		BlockVector3 point1 = calculatePointFrom(regionOrigin, regionRadius);
 		BlockVector3 point2 = calculatePointFrom(regionOrigin, -regionRadius);
 		ProtectedCuboidRegion region = createRegion(regionUUID, point1, point2);
 		applyFlagsTo(region, new AbstractMap.SimpleEntry<>(Flags.BUILD, StateFlag.State.DENY));
 
-		RegionData regionData = getRegionDataFrom(regionOrigin);
-		addRegionTo(regionData, region);
+		if (isInvalid(region, regionManagerData))
+			return false;
+
+		addRegionTo(regionManagerData, region);
 
 		return true;
 	}
 
-	private static boolean verifyEvent(PlayerInteractEvent event) {
+	private static boolean isInvalid(PlayerInteractEvent event) {
 		if (event.getClickedBlock() == null || event.getItem() == null)
-			return false;
+			return true;
 
-		return
+		return !(
 			event.hasBlock() &&
 			event.getItem().getType() == Material.COMPASS &&
-			event.getClickedBlock().getType() == Material.LODESTONE;
+			event.getClickedBlock().getType() == Material.LODESTONE
+		);
 	}
 
 	private static CompassData getCompassDataFrom(PlayerInteractEvent event) {
@@ -114,8 +120,8 @@ public class RegionCreator {
 		return new CompassData(compassItem, compassMetaData, compassContainer);
 	}
 
-	private static boolean verifyCompass(PersistentDataContainer compassContainer, NamespacedKey containerKey) {
-		return compassContainer.has(containerKey);
+	private static boolean isInvalid(CompassData compassData, NamespacedKey containerKey) {
+		return !compassData.compassContainer.has(containerKey);
 	}
 
 	private static Location getRegionOriginFrom(PlayerInteractEvent event) {
@@ -140,6 +146,14 @@ public class RegionCreator {
 		compassData.compassItem.setItemMeta(compassData.compassMetaData);
 	}
 
+	private static RegionManagerData getRegionDataFrom(Location regionOrigin) {
+		World adaptedWorld = BukkitAdapter.adapt(regionOrigin.getWorld());
+		RegionContainer regionContainer = WorldGuard.getInstance().getPlatform().getRegionContainer();
+		RegionManager regionManager = regionContainer.get(adaptedWorld);
+
+		return new RegionManagerData(regionContainer, regionManager);
+	}
+
 	private static BlockVector3 calculatePointFrom(Location regionOrigin, int radius) {
 		int x = regionOrigin.getBlockX() + radius;
 		int y = regionOrigin.getBlockY() + radius;
@@ -159,16 +173,16 @@ public class RegionCreator {
 		}
 	}
 
-	private static RegionData getRegionDataFrom(Location regionOrigin) {
-		World adaptedWorld = BukkitAdapter.adapt(regionOrigin.getWorld());
-		RegionContainer regionContainer = WorldGuard.getInstance().getPlatform().getRegionContainer();
-		RegionManager regionManager = regionContainer.get(adaptedWorld);
+	private static boolean isInvalid(ProtectedCuboidRegion region, RegionManagerData regionManagerData) {
+		List<ProtectedRegion> allRegions = (List<ProtectedRegion>) regionManagerData.regionManager.getRegions().values();
 
-		return new RegionData(regionContainer, regionManager);
+		List<ProtectedRegion> overlapping = region.getIntersectingRegions(allRegions);
+
+		return overlapping.size() > 0;
 	}
 
-	private static void addRegionTo(RegionData regionData, ProtectedCuboidRegion region) throws StorageException {
-		regionData.regionManager.addRegion(region);
-		regionData.regionManager.save();
+	private static void addRegionTo(RegionManagerData regionManagerData, ProtectedCuboidRegion region) throws StorageException {
+		regionManagerData.regionManager.addRegion(region);
+		regionManagerData.regionManager.save();
 	}
 }
