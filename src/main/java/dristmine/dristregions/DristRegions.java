@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("unused")
 public final class DristRegions extends JavaPlugin {
 
 	@Override
@@ -25,6 +26,14 @@ public final class DristRegions extends JavaPlugin {
 
 		ConfigManager configManager = new ConfigManager(this);
 
+		UUIDGenerator uuidGenerator = null;
+		try {
+			uuidGenerator = new UUIDGenerator(configManager.getString("last_uuid"));
+		}
+		catch (UUIDGenerator.UUIDOverflowException e) {
+			getServer().getPluginManager().disablePlugin(this);
+		}
+
 		NamespacedKey compassContainerKey = new NamespacedKey(this, configManager.getString("compass_containers_namespace"));
 
 		Component compassDisplayName = Component.text(configManager.getString("compass_display_name"));
@@ -38,7 +47,7 @@ public final class DristRegions extends JavaPlugin {
 		RegionCreator regionCreator = new RegionCreator(compassContainerKey, compassDisplayName, compassLore, regionRadius);
 
 
-		register(new OnPlayerInteract(regionCreator));
+		register(new OnPlayerInteract(regionCreator, uuidGenerator));
 	}
 
 	@Override
