@@ -2,18 +2,16 @@ package dristmine.dristregions.creation;
 
 import com.sk89q.worldguard.protection.managers.storage.StorageException;
 
-import dristmine.dristregions.DristRegions;
-
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
 
 import java.util.UUID;
 
-public class OnCompassLinked implements Listener {
+public class OnPlayerInteract implements Listener {
 	private final RegionCreator regionCreator;
 
-	public OnCompassLinked(RegionCreator regionCreator) {
+	public OnPlayerInteract(RegionCreator regionCreator) {
 		this.regionCreator = regionCreator;
 	}
 

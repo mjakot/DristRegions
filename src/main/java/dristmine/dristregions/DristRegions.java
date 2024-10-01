@@ -1,6 +1,7 @@
 package dristmine.dristregions;
 
-import dristmine.dristregions.creation.OnCompassLinked;
+import dristmine.dristregions.config.ConfigManager;
+import dristmine.dristregions.creation.OnPlayerInteract;
 import dristmine.dristregions.creation.RegionCreator;
 import net.kyori.adventure.text.Component;
 import org.bukkit.NamespacedKey;
@@ -8,6 +9,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public final class DristRegions extends JavaPlugin {
 
@@ -21,15 +23,22 @@ public final class DristRegions extends JavaPlugin {
 		getLogger().info("       v");
 		getLogger().info("        ");
 
-		NamespacedKey compassContainerKey = new NamespacedKey(this, "drist-regions"); //TODO: from config
+		ConfigManager configManager = new ConfigManager(this);
 
-		Component compassDisplayName = Component.text("Hii"); //TODO: from config
-		List<Component> compassLore = List.of(Component.text("HII")); //TODO: from config
+		NamespacedKey compassContainerKey = new NamespacedKey(this, configManager.getString("compass_containers_namespace"));
 
-		RegionCreator regionCreator = new RegionCreator(compassContainerKey, compassDisplayName, compassLore, 5); //TODO: from config
+		Component compassDisplayName = Component.text(configManager.getString("compass_display_name"));
+		List<Component> compassLore = configManager.getStringList("compass_lore")
+			.stream()
+			.map(Component::text)
+			.collect(Collectors.toList());
+
+		int regionRadius = configManager.getInteger("region_radius");
+
+		RegionCreator regionCreator = new RegionCreator(compassContainerKey, compassDisplayName, compassLore, regionRadius);
 
 
-		register(new OnCompassLinked(regionCreator));
+		register(new OnPlayerInteract(regionCreator));
 	}
 
 	@Override

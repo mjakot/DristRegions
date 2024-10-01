@@ -1,0 +1,6 @@
+region_radius: 5
+compass_containers_namespace: "drist-regions"
+compass_display_name: "Region key"
+compass_lore:
+  - "Explanation"
+  - "Sample"
