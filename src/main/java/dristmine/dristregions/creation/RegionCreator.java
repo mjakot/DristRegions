@@ -2,6 +2,7 @@ package dristmine.dristregions.creation;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.math.Vector3;
 import com.sk89q.worldedit.world.World;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.flags.Flag;
@@ -12,7 +13,9 @@ import com.sk89q.worldguard.protection.managers.storage.StorageException;
 import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
+
 import net.kyori.adventure.text.Component;
+
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -23,8 +26,10 @@ import org.bukkit.persistence.PersistentDataContainer;
 
 import java.util.AbstractMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 public class RegionCreator {
 	private static class CompassData {
@@ -72,6 +77,16 @@ public class RegionCreator {
 		if (isInvalid(event))
 			return false;
 
+		Location regionOrigin = getRegionOriginFrom(event);
+		BlockVector3 regionOriginVector3 = vector3From(regionOrigin);
+
+		RegionManagerData regionManagerData = getRegionDataFrom(regionOrigin);
+		Map<String, ProtectedRegion> idRegionMap = regionManagerData.regionManager.getRegions();
+		List<ProtectedRegion> allProtectedRegions = idRegionMap.values().stream().toList();
+
+		if (isAlreadyOccupied(regionOriginVector3, allProtectedRegions))
+			return false;
+
 		event.setCancelled(true);
 
 		CompassData compassData = getCompassDataFrom(event);
@@ -79,29 +94,28 @@ public class RegionCreator {
 		if (isInvalid(compassData, containerKey))
 			return false;
 
-		Location regionOrigin = getRegionOriginFrom(event);
-
 		assignContainerTo(compassData, containerKey, regionUUID);
 		assignTextTo(compassData, compassDisplayName, compassLore);
 		assignLodestoneTo(compassData, regionOrigin);
-		applyCompassMetadataTo(compassData);
 
-		RegionManagerData regionManagerData = getRegionDataFrom(regionOrigin);
-
-		BlockVector3 point1 = calculatePointFrom(regionOrigin, regionRadius);
-		BlockVector3 point2 = calculatePointFrom(regionOrigin, -regionRadius);
+		BlockVector3 point1 = calculatePointFrom(regionOriginVector3, regionRadius);
+		BlockVector3 point2 = calculatePointFrom(regionOriginVector3, -regionRadius);
 		ProtectedCuboidRegion region = createRegion(regionUUID, point1, point2);
 		applyFlagsTo(region, new AbstractMap.SimpleEntry<>(Flags.BUILD, StateFlag.State.DENY));
 
-		if (isInvalid(region, regionManagerData))
+		if (isInvalid(region, allProtectedRegions))
 			return false;
 
 		addRegionTo(regionManagerData, region);
+
+		applyCompassMetadataTo(compassData);
 
 		return true;
 	}
 
 	private static boolean isInvalid(PlayerInteractEvent event) {
+
+
 		if (event.getClickedBlock() == null || event.getItem() == null)
 			return true;
 
@@ -110,6 +124,30 @@ public class RegionCreator {
 			event.getItem().getType() == Material.COMPASS &&
 			event.getClickedBlock().getType() == Material.LODESTONE
 		);
+	}
+
+	private static boolean isAlreadyOccupied(BlockVector3 regionOrigin, List<ProtectedRegion> allRegions) {
+		List<BlockVector3> minPoints = allRegions.stream()
+				.map(ProtectedRegion::getMinimumPoint)
+				.toList();
+		List<BlockVector3> maxPoints = allRegions.stream()
+				.map(ProtectedRegion::getMaximumPoint)
+				.toList();
+
+		if (minPoints.size() != maxPoints.size())
+			throw new IllegalArgumentException("Points lists must be the same length: " + minPoints + " and " + maxPoints);
+
+		List<BlockVector3> allOrigins = IntStream.range(0, minPoints.size())
+				.mapToObj(i -> calculateVectorMean(minPoints.get(i), maxPoints.get(i)))
+				.toList();
+
+		for (BlockVector3 vector : allOrigins) {
+			if (regionOrigin.divide(vector) == BlockVector3.ZERO) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private static CompassData getCompassDataFrom(PlayerInteractEvent event) {
@@ -154,12 +192,16 @@ public class RegionCreator {
 		return new RegionManagerData(regionContainer, regionManager);
 	}
 
-	private static BlockVector3 calculatePointFrom(Location regionOrigin, int radius) {
-		int x = regionOrigin.getBlockX() + radius;
-		int y = regionOrigin.getBlockY() + radius;
-		int z = regionOrigin.getBlockZ() + radius;
+	private static BlockVector3 vector3From(Location regionOrigin) {
+		int x = regionOrigin.getBlockX();
+		int y = regionOrigin.getBlockY();
+		int z = regionOrigin.getBlockZ();
 
 		return BlockVector3.at(x, y, z);
+	}
+
+	private static BlockVector3 calculatePointFrom(BlockVector3 regionOrigin, int radius) {
+		return regionOrigin.add(radius, radius, radius);
 	}
 
 	private static ProtectedCuboidRegion createRegion(UUID regionUUID, BlockVector3 point1, BlockVector3 point2) {
@@ -173,9 +215,7 @@ public class RegionCreator {
 		}
 	}
 
-	private static boolean isInvalid(ProtectedCuboidRegion region, RegionManagerData regionManagerData) {
-		List<ProtectedRegion> allRegions = (List<ProtectedRegion>) regionManagerData.regionManager.getRegions().values();
-
+	private static boolean isInvalid(ProtectedCuboidRegion region, List<ProtectedRegion> allRegions) {
 		List<ProtectedRegion> overlapping = region.getIntersectingRegions(allRegions);
 
 		return overlapping.size() > 0;
@@ -184,5 +224,11 @@ public class RegionCreator {
 	private static void addRegionTo(RegionManagerData regionManagerData, ProtectedCuboidRegion region) throws StorageException {
 		regionManagerData.regionManager.addRegion(region);
 		regionManagerData.regionManager.save();
+	}
+
+	private static BlockVector3 calculateVectorMean(BlockVector3 point1, BlockVector3 point2) {
+		BlockVector3 sum = point1.add(point2);
+
+		return sum.divide(2);
 	}
 }

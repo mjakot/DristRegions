@@ -23,8 +23,11 @@ public class OnPlayerInteract implements Listener {
 
 		switch (event.getAction()) {
 			case RIGHT_CLICK_BLOCK -> {
-				if (regionCreator.create(event, uuidGenerator.next()))
+				if (!regionCreator.create(event, uuidGenerator.next()))
 					uuidGenerator.previous();
+			}
+			case RIGHT_CLICK_AIR -> {
+
 			}
 		}
 	}
