@@ -1,8 +1,10 @@
 package dristmine.dristregions;
 
+import dev.triumphteam.gui.guis.Gui;
 import dristmine.dristregions.config.ConfigManager;
 import dristmine.dristregions.creation.OnPlayerInteract;
 import dristmine.dristregions.creation.RegionCreator;
+import dristmine.dristregions.interaction.RegionUIProvider;
 import net.kyori.adventure.text.Component;
 import org.bukkit.NamespacedKey;
 import org.bukkit.event.Listener;
@@ -46,10 +48,16 @@ public final class DristRegions extends JavaPlugin {
 
 		int regionRadius = configManager.getInteger("region_radius");
 
+		Gui gui = Gui.gui()
+				.title(Component.text("GUI Title!"))
+				.rows(6)
+				.create();
+
 		RegionCreator regionCreator = new RegionCreator(compassContainerKey, compassDisplayName, compassLore, regionRadius);
+		RegionUIProvider regionUIProvider = new RegionUIProvider(gui);
 
 
-		register(new OnPlayerInteract(regionCreator, uuidGenerator));
+		register(new OnPlayerInteract(regionCreator, regionUIProvider, uuidGenerator));
 	}
 
 	@Override

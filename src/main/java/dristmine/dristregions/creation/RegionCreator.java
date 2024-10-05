@@ -2,7 +2,6 @@ package dristmine.dristregions.creation;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.math.Vector3;
 import com.sk89q.worldedit.world.World;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.flags.Flag;
@@ -78,7 +77,7 @@ public class RegionCreator {
 			return false;
 
 		Location regionOrigin = getRegionOriginFrom(event);
-		BlockVector3 regionOriginVector3 = vector3From(regionOrigin);
+		BlockVector3 regionOriginVector3 = BukkitAdapter.asBlockVector(regionOrigin);
 
 		RegionManagerData regionManagerData = getRegionDataFrom(regionOrigin);
 		Map<String, ProtectedRegion> idRegionMap = regionManagerData.regionManager.getRegions();
@@ -114,16 +113,11 @@ public class RegionCreator {
 	}
 
 	private static boolean isInvalid(PlayerInteractEvent event) {
-
-
 		if (event.getClickedBlock() == null || event.getItem() == null)
 			return true;
 
-		return !(
-			event.hasBlock() &&
-			event.getItem().getType() == Material.COMPASS &&
-			event.getClickedBlock().getType() == Material.LODESTONE
-		);
+		return event.getItem().getType() != Material.COMPASS ||
+				event.getClickedBlock().getType() != Material.LODESTONE;
 	}
 
 	private static boolean isAlreadyOccupied(BlockVector3 regionOrigin, List<ProtectedRegion> allRegions) {
@@ -190,14 +184,6 @@ public class RegionCreator {
 		RegionManager regionManager = regionContainer.get(adaptedWorld);
 
 		return new RegionManagerData(regionContainer, regionManager);
-	}
-
-	private static BlockVector3 vector3From(Location regionOrigin) {
-		int x = regionOrigin.getBlockX();
-		int y = regionOrigin.getBlockY();
-		int z = regionOrigin.getBlockZ();
-
-		return BlockVector3.at(x, y, z);
 	}
 
 	private static BlockVector3 calculatePointFrom(BlockVector3 regionOrigin, int radius) {
